@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>🧾 Patient Records</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h2>🧾 Patient Records</h2>
+  <table>
+    <tr>
+      <th>ID</th><th>Patient ID</th><th>Age</th><th>Gender</th><th>Duration</th>
+      <th>Symptoms</th><th>Cancer Type</th><th>Severity</th>
+      <th>Urgency</th><th>Confidence</th><th>Survival</th><th>Actions</th>
+    </tr>
+    {% for row in data %}
+    <tr>
+      <td>{{ row[0] }}</td>
+      <td>{{ row[1] }}</td>
+      <td>{{ row[2] }}</td>
+      <td>{{ row[3] }}</td>
+      <td>{{ row[4] }}</td>
+      <td>{{ row[5] }}</td>
+      <td>{{ row[6] }}</td>
+      <td>{{ row[7] }}</td>
+      <td>{{ row[8] }}</td>
+      <td>{{ row[9]|round(2) }}%</td>
+      <td>{{ row[10]|round(2) }}%</td>
+      <td>
+        <a href="/edit/{{ row[0] }}"> Edit</a> |
+        <a href="/delete/{{ row[0] }}"> Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <br><a href="/">⬅ Back to Home</a>
+</body>
+</html>
