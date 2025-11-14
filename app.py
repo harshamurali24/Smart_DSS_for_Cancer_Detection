@@ -1,20 +1,20 @@
-from flask import Flask, render_template, request, redirect
-import numpy as np
+from flask import Flask, render_template, request, redirect, url_for, session, send_file
 import sqlite3
-from PIL import Image
-import io
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
 
 app = Flask(__name__)
+app.secret_key = "CHANGE_THIS_TO_A_RANDOM_SECRET_KEY"
 
-# -----------------------------
-# 1. Database Setup
-# -----------------------------
 DB_PATH = "patients.db"
 
+# ---------------------------
+# DATABASE INITIALIZATION
+# ---------------------------
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
+    cur = conn.cursor()
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id TEXT,
@@ -22,11 +22,9 @@ def init_db():
             gender TEXT,
             duration INTEGER,
             symptoms TEXT,
-            cancer_type TEXT,
-            severity TEXT,
-            urgency TEXT,
-            confidence REAL,
-            survival_prob REAL
+            scan_file TEXT,
+            lab_file TEXT,
+            history_file TEXT
         )
     """)
     conn.commit()
@@ -34,259 +32,166 @@ def init_db():
 
 init_db()
 
-# -----------------------------
-# 2. Model Data
-# -----------------------------
-cancer_symptoms = {
-    "Breast Cancer": {
-        "Change in breast size or shape": 0.3,
-        "Lump in breast or underarm": 0.4,
-        "Persistent thickening near breast": 0.35,
-        "Skin dimpling or redness on breast": 0.25,
-        "Marble-like hardened area under skin": 0.3,
-        "Nipple discharge (blood-stained or clear)": 0.35
-    },
-    "Lung Cancer": {
-        "Persistent cough": 0.3,
-        "Coughing up blood": 0.4,
-        "Shortness of breath": 0.3,
-        "Chest pain or discomfort": 0.25,
-        "Wheezing": 0.25,
-        "Hoarseness": 0.2,
-        "Loss of appetite": 0.2,
-        "Unexplained weight loss": 0.3,
-        "Fatigue or tiredness": 0.2,
-        "Shoulder pain": 0.15,
-        "Swelling in face or neck": 0.25,
-        "Drooping eyelid or uneven pupil": 0.3
-    },
-    "Prostate Cancer": {
-        "Frequent need to pee, especially at night": 0.35,
-        "Weak urine flow": 0.25,
-        "Pain or burning when peeing": 0.3,
-        "Loss of bladder control": 0.2,
-        "Loss of bowel control": 0.2,
-        "Painful ejaculation or erectile dysfunction": 0.35,
-        "Blood in semen or pee": 0.4,
-        "Pain in lower back, hip or chest": 0.25
-    },
-    "Blood Cancer": {
-        "Fatigue": 0.3,
-        "Shortness of breath": 0.3,
-        "Swollen lymph nodes": 0.35,
-        "Frequent infections": 0.3,
-        "Bone or joint pain": 0.25,
-        "Night sweats": 0.25,
-        "Enlarged liver or spleen": 0.3,
-        "Persistent fever": 0.3,
-        "Unexplained weight loss": 0.3,
-        "Unusual bruising or bleeding": 0.4
-    }
-}
+# ---------------------------
+# ADMIN CREDENTIALS
+# ---------------------------
+ADMIN_USER = "admin"
+ADMIN_PASS = generate_password_hash("cancer123")  # change later
 
-# -----------------------------
-# 3. Utility Functions
-# -----------------------------
-def safe_int(value, default):
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
+# ---------------------------
+# LOGIN REQUIRED DECORATOR
+# ---------------------------
+def login_required(f):
+    def wrapper(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect("/login")
+        return f(*args, **kwargs)
+    wrapper.__name__ = f.__name__
+    return wrapper
 
-def analyze_image(image_bytes):
-    """Simulated CNN-like image analysis."""
-    try:
-        img = Image.open(io.BytesIO(image_bytes)).convert('L')
-        arr = np.array(img)
-        variance = np.var(arr)
-        confidence = min(95, max(40, variance / 800))
-        return confidence
-    except:
-        return 0
 
-def survival_prediction(confidence, age):
-    base = 0.9 - (confidence / 200) - (age / 300)
-    return max(0.1, min(0.99, base))
+# ---------------------------
+# ROUTES
+# ---------------------------
+@app.route("/")
+def home():
+    return render_template("index.html")
 
-# -----------------------------
-# 4. Routes
-# -----------------------------
-@app.route("/", methods=["GET", "POST"])
-def index():
-    result = None
+
+# ---------------------------
+# LOGIN / LOGOUT
+# ---------------------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
     if request.method == "POST":
-        patient_id = request.form.get("name", "Unknown")
-        age = safe_int(request.form.get("age"), 45)
-        gender = request.form.get("gender", "Not specified")
-        duration = safe_int(request.form.get("duration"), 3)
-        selected_symptoms = request.form.getlist("symptoms")
+        username = request.form.get("username")
+        password = request.form.get("password")
 
-        # Cancer prediction logic
-        cancer_scores = {}
-        for cancer, symptoms in cancer_symptoms.items():
-            score = sum(symptoms.get(s, 0) for s in selected_symptoms)
-            cancer_scores[cancer] = score
-
-        likely_cancer = max(cancer_scores, key=cancer_scores.get)
-        symptom_score = cancer_scores[likely_cancer]
-
-        symptom_confidence = min(100, 40 + symptom_score * 100)
-        if age > 60:
-            symptom_confidence += 10
-        elif age < 25:
-            symptom_confidence -= 5
-        if duration > 6:
-            symptom_confidence += 10
-        elif duration < 1:
-            symptom_confidence -= 5
-        symptom_confidence = np.clip(symptom_confidence, 0, 100)
-
-        # Image analysis
-        image_confidence = 0
-        if 'scan' in request.files and request.files['scan'].filename != '':
-            image_bytes = request.files['scan'].read()
-            image_confidence = analyze_image(image_bytes)
-
-        combined_confidence = (symptom_confidence * 0.6) + (image_confidence * 0.4)
-
-        # Severity and urgency
-        if combined_confidence < 50:
-            severity, urgency, color = "Low", "Routine Check", "#5cb85c"
-        elif combined_confidence < 75:
-            severity, urgency, color = "Moderate", "Doctor Visit Recommended", "#f0ad4e"
+        if username == ADMIN_USER and check_password_hash(ADMIN_PASS, password):
+            session["logged_in"] = True
+            return redirect("/records")
         else:
-            severity, urgency, color = "High", "Immediate Medical Attention", "#d9534f"
+            return render_template("login.html", error="Invalid username or password")
 
-        survival_prob = survival_prediction(combined_confidence, age)
-
-        # Save to DB
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO patients (
-                patient_id, age, gender, duration, symptoms, cancer_type,
-                severity, urgency, confidence, survival_prob
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            patient_id, age, gender, duration, ",".join(selected_symptoms),
-            likely_cancer, severity, urgency, combined_confidence, survival_prob
-        ))
-        conn.commit()
-        conn.close()
-
-        # -----------------------------
-        # Interpret results into plain medical form
-        # -----------------------------
-        if combined_confidence >= 60:
-            diagnosis = f"Signs suggest possible presence of {likely_cancer}."
-        else:
-            diagnosis = f"No strong evidence of cancer detected — {likely_cancer} unlikely."
-
-        if survival_prob > 0.75:
-            prognosis = "Favorable — good outlook with early detection."
-        elif survival_prob > 0.45:
-            prognosis = "Monitor closely — treatment likely to improve outcomes."
-        else:
-            prognosis = "Critical outlook — immediate medical attention advised."
-
-        # Final output (cleaned for UI)
-        result = {
-            "name": patient_id,
-            "age": age,
-            "gender": gender,
-            "cancer_type": likely_cancer,
-            "severity": severity,
-            "urgency": urgency,
-            "diagnosis": diagnosis,
-            "prognosis": prognosis,
-            "color": color
-        }
+    return render_template("login.html")
 
 
-    return render_template(
-        "index.html",
-        symptoms=sorted(set(s for d in cancer_symptoms.values() for s in d)),
-        result=result
-    )
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
 
-# -----------------------------
-# 5. Record Management
-# -----------------------------
+
+# ---------------------------
+# VIEW ALL RECORDS (PROTECTED)
+# ---------------------------
 @app.route("/records")
+@login_required
 def records():
     conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT * FROM patients")
-    data = c.fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM patients")
+    data = cur.fetchall()
     conn.close()
-    return render_template("records.html", data=data)
+    return render_template("records.html", records=data)
 
-@app.route("/edit/<int:id>", methods=["GET", "POST"])
-def edit_record(id):
+
+# ---------------------------
+# ADD PATIENT (PUBLIC FORM)
+# ---------------------------
+@app.route("/submit", methods=["POST"])
+def submit():
+    patient_id = request.form.get("patient_id")
+    age = request.form.get("age")
+    gender = request.form.get("gender")
+    duration = request.form.get("duration")
+    symptoms = request.form.get("symptoms")
+
+    scan = request.files.get("scan")
+    lab = request.files.get("lab")
+    history = request.files.get("history")
+
+    def save_file(file, folder="uploads"):
+        if not file or file.filename == "":
+            return None
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, file.filename)
+        file.save(path)
+        return path
+
+    scan_path = save_file(scan)
+    lab_path = save_file(lab)
+    history_path = save_file(history)
+
     conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO patients (patient_id, age, gender, duration, symptoms, scan_file, lab_file, history_file) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (patient_id, age, gender, duration, symptoms, scan_path, lab_path, history_path))
+    conn.commit()
+    conn.close()
+
+    return redirect("/")
+
+
+# ---------------------------
+# EDIT RECORD (PROTECTED)
+# ---------------------------
+@app.route("/edit/<int:record_id>", methods=["GET", "POST"])
+@login_required
+def edit(record_id):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
 
     if request.method == "POST":
-        age = request.form["age"]
-        gender = request.form["gender"]
-        duration = request.form["duration"]
-        cancer_type = request.form["cancer_type"]
-        severity = request.form["severity"]
-        urgency = request.form["urgency"]
+        patient_id = request.form.get("patient_id")
+        age = request.form.get("age")
+        gender = request.form.get("gender")
+        duration = request.form.get("duration")
+        symptoms = request.form.get("symptoms")
 
-        c.execute("""
-            UPDATE patients
-            SET age=?, gender=?, duration=?, cancer_type=?, severity=?, urgency=?
+        cur.execute("""
+            UPDATE patients 
+            SET patient_id=?, age=?, gender=?, duration=?, symptoms=? 
             WHERE id=?
-        """, (age, gender, duration, cancer_type, severity, urgency, id))
+        """, (patient_id, age, gender, duration, symptoms, record_id))
         conn.commit()
         conn.close()
         return redirect("/records")
 
-    c.execute("SELECT * FROM patients WHERE id=?", (id,))
-    record = c.fetchone()
+    cur.execute("SELECT * FROM patients WHERE id=?", (record_id,))
+    record = cur.fetchone()
     conn.close()
+
     return render_template("edit.html", record=record)
 
-@app.route("/delete/<int:id>")
-def delete_record(id):
+
+# ---------------------------
+# DELETE RECORD (PROTECTED)
+# ---------------------------
+@app.route("/delete/<int:record_id>")
+@login_required
+def delete(record_id):
     conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("DELETE FROM patients WHERE id=?", (id,))
+    cur = conn.cursor()
+    cur.execute("DELETE FROM patients WHERE id=?", (record_id,))
     conn.commit()
     conn.close()
     return redirect("/records")
 
-@app.route("/add", methods=["GET", "POST"])
-def add_patient():
-    if request.method == "POST":
-        patient_id = request.form["patient_id"]
-        age = request.form["age"]
-        gender = request.form["gender"]
-        duration = request.form["duration"]
-        symptoms = request.form.get("symptoms", "")
-        cancer_type = request.form["cancer_type"]
-        severity = request.form["severity"]
-        urgency = request.form["urgency"]
-        confidence = request.form["confidence"]
-        survival = float(request.form["survival"]) / 100
 
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("""
-            INSERT INTO patients (patient_id, age, gender, duration, symptoms,
-                                  cancer_type, severity, urgency, confidence, survival_prob)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (patient_id, age, gender, duration, symptoms, cancer_type,
-              severity, urgency, confidence, survival))
-        conn.commit()
-        conn.close()
-        return redirect("/records")
+# ---------------------------
+# DOWNLOAD FILE
+# ---------------------------
+@app.route("/download/<path:filepath>")
+@login_required
+def download(filepath):
+    return send_file(filepath, as_attachment=True)
 
-    return render_template("edit.html", record=None)
 
-# -----------------------------
-# 6. Run Server
-# -----------------------------
+# ---------------------------
+# RUN APP
+# ---------------------------
 if __name__ == "__main__":
     app.run(debug=True)

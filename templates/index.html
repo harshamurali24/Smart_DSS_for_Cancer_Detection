@@ -3,123 +3,19 @@
 <head>
     <title>🎗️ Cancer Decision Support System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
     <p style="text-align:center;">
         <a href="/records" style="color:#d63384; text-decoration:none; font-weight:bold;">📋 View All Patient Records</a>
     </p>
-
-    <style>
-        body {
-            font-family: "Segoe UI", sans-serif;
-            background-color: #3a232f;
-            margin: 0;
-            padding: 0;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            background: #fff0f5;
-            padding: 20px 30px;
-            border-radius: 15px;
-            box-shadow: 0 0 12px rgba(255, 182, 193, 0.4);
-        }
-
-        h1 {
-            text-align: center;
-            color: #0e0d0e;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .patient-info {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-width: 300px;
-        }
-
-        label {
-            display: block;
-            margin: 5px 0;
-            color: #070707;
-        }
-
-        input[type="text"], input[type="number"], select {
-            padding: 8px;
-            width: 100%;
-            border: 1px solid #cb8590;
-            border-radius: 6px;
-        }
-
-        .cancer-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-
-        .symptom-group {
-            padding: 15px;
-            background-color: #ffe4ec;
-            border-radius: 10px;
-            height: 100%;
-            overflow-y: auto;
-            border: 1px solid #532549;
-        }
-
-        .symptom-group h4 {
-            color: #1f1e1e;
-            margin-bottom: 8px;
-        }
-
-        input[type="file"] {
-            margin: 10px 0;
-        }
-
-        button {
-            background-color: #1b511d;
-            color: white;
-            padding: 12px 25px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            width: 200px;
-            align-self: center;
-        }
-
-        button:hover {
-            background-color: #ff1493;
-        }
-
-        .result {
-            margin-top: 30px;
-            padding: 20px;
-            border-radius: 10px;
-            background-color: #ffe4f0;
-            border: 3px solid #ff69b4;
-        }
-
-        .result h2 {
-            color: #46353f;
-        }
-
-        .result p {
-            font-size: 1.1em;
-            margin: 6px 0;
-        }
-
-        @media(max-width: 900px) {
-            .cancer-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 <body>
+    <!-- 🌙 Dark Mode Toggle -->
+    <button id="theme-toggle">🌙 Toggle Theme</button>
+    <script>
+        const btn = document.getElementById('theme-toggle');
+        btn.onclick = () => document.body.classList.toggle('dark-mode');
+    </script>
+
     <div class="container">
         <h1>🎗️ Cancer Decision Support System</h1>
         <form method="POST" enctype="multipart/form-data">
@@ -145,23 +41,22 @@
             </div>
 
             <!-- File uploads -->
-             <div class="file-row">
-            <div class="file-box">
-            <h3>Upload Scan</h3>
-            <input type="file" name="scan" accept="image/*">
-           </div>
+            <div class="file-row">
+                <div class="file-box">
+                    <h3>Upload Scan</h3>
+                    <input type="file" name="scan" accept="image/*">
+                </div>
 
-            <div class="file-box">
-           <h3>Upload Lab Results</h3>
-        <input type="file" name="labdata" accept=".txt,.csv">
-    </div>
+                <div class="file-box">
+                    <h3>Upload Lab Results</h3>
+                    <input type="file" name="labdata" accept=".txt,.csv">
+                </div>
 
-    <div class="file-box">
-        <h3>Upload Patient History / Notes</h3>
-        <input type="file" name="notes" accept=".txt,.csv">
-    </div>
-</div>
-
+                <div class="file-box">
+                    <h3>Upload Patient History / Notes</h3>
+                    <input type="file" name="notes" accept=".txt,.csv">
+                </div>
+            </div>
 
             <!-- Cancer Symptoms Grid -->
             <div class="cancer-grid">
@@ -191,16 +86,20 @@
                 <p><b>Age:</b> {{ result.age }}</p>
                 <p><b>Gender:</b> {{ result.gender }}</p>
                 <hr>
-                <p><b>Most Probable Cancer Type:</b> <span style="color:{{ result.color }}">{{ result.cancer_type }}</span></p>
+                <p><b>Most Probable Cancer Type:</b> 
+                    <span style="color:{{ result.color }}">{{ result.cancer_type }}</span>
+                </p>
                 <p><b>Severity:</b> {{ result.severity }}</p>
                 <p><b>Urgency:</b> {{ result.urgency }}</p>
+
                 <h3 style="color:{{ result.color }};">Diagnosis Result</h3>
                 <p>{{ result.diagnosis }}</p>
 
                 <h3>Prognosis Result</h3>
                 <p>{{ result.prognosis }}</p>
-               
 
+                <h3>🩺 Doctor Summary</h3>
+                <p>{{ result.summary }}</p>
             </div>
         {% endif %}
     </div>

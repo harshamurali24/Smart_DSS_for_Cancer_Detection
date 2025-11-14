@@ -1,41 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>🧾 Patient Records</title>
-  <style>
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background-color: #f0f0f0; }
-  </style>
+    <title>Patient Records</title>
 </head>
 <body>
-  <h2>🧾 Patient Records</h2>
-  <table>
+
+<h1>Patient Records</h1>
+
+<a href="/logout">Logout</a>
+
+<table border="1" cellpadding="10">
     <tr>
-      <th>ID</th><th>Patient ID</th><th>Age</th><th>Gender</th><th>Duration</th>
-      <th>Symptoms</th><th>Cancer Type</th><th>Severity</th>
-      <th>Urgency</th><th>Confidence</th><th>Survival</th><th>Actions</th>
+        <th>ID</th>
+        <th>Patient ID</th>
+        <th>Age</th>
+        <th>Gender</th>
+        <th>Duration</th>
+        <th>Symptoms</th>
+        <th>Actions</th>
     </tr>
-    {% for row in data %}
+
+    {% for r in records %}
     <tr>
-      <td>{{ row[0] }}</td>
-      <td>{{ row[1] }}</td>
-      <td>{{ row[2] }}</td>
-      <td>{{ row[3] }}</td>
-      <td>{{ row[4] }}</td>
-      <td>{{ row[5] }}</td>
-      <td>{{ row[6] }}</td>
-      <td>{{ row[7] }}</td>
-      <td>{{ row[8] }}</td>
-      <td>{{ row[9]|round(2) }}%</td>
-      <td>{{ row[10]|round(2) }}%</td>
-      <td>
-        <a href="/edit/{{ row[0] }}"> Edit</a> |
-        <a href="/delete/{{ row[0] }}"> Delete</a>
-      </td>
+        <td>{{ r[0] }}</td>
+        <td>{{ r[1] }}</td>
+        <td>{{ r[2] }}</td>
+        <td>{{ r[3] }}</td>
+        <td>{{ r[4] }}</td>
+        <td>{{ r[5] }}</td>
+
+        <td>
+            <a href="/edit/{{ r[0] }}">Edit</a> |
+            <a href="/delete/{{ r[0] }}" onclick="return confirm('Delete this record?')">Delete</a>
+        </td>
     </tr>
     {% endfor %}
-  </table>
-  <br><a href="/">⬅ Back to Home</a>
+</table>
+
 </body>
 </html>

@@ -2,18 +2,33 @@
 <html>
 <head>
   <title>Edit Record</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <h2>Edit Record #{{ record[0] }}</h2>
-  <form method="POST">
-    Age: <input type="number" name="age" value="{{ record[2] }}"><br><br>
-    Gender: <input type="text" name="gender" value="{{ record[3] }}"><br><br>
-    Duration: <input type="number" name="duration" value="{{ record[4] }}"><br><br>
-    Cancer Type: <input type="text" name="cancer_type" value="{{ record[6] }}"><br><br>
-    Severity: <input type="text" name="severity" value="{{ record[7] }}"><br><br>
-    Urgency: <input type="text" name="urgency" value="{{ record[8] }}"><br><br>
-    <button type="submit">💾 Save Changes</button>
-  </form>
-  <br><a href="/records">⬅ Back</a>
+  <div class="container">
+    <h2>Edit Record #{{ record[0] }}</h2>
+    <form method="POST">
+      <label>Age:</label>
+      <input type="number" name="age" value="{{ record[2] }}" required>
+
+      <label>Gender:</label>
+      <input type="text" name="gender" value="{{ record[3] }}" required>
+
+      <label>Duration (months):</label>
+      <input type="number" name="duration" value="{{ record[4] }}" required>
+
+      <label>Cancer Type:</label>
+      <input type="text" name="cancer_type" value="{{ record[6] }}">
+
+      <label>Severity:</label>
+      <input type="text" name="severity" value="{{ record[7] }}">
+
+      <label>Urgency:</label>
+      <input type="text" name="urgency" value="{{ record[8] }}">
+
+      <button type="submit">💾 Save Changes</button>
+    </form>
+    <br><a href="/records">⬅ Back</a>
+  </div>
 </body>
 </html>
